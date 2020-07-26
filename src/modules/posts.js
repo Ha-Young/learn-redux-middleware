@@ -1,4 +1,5 @@
 import * as postsAPI from "../api/posts";
+import { call, put, takeEvery } from "redux-saga/effects";
 
 const GET_POSTS = "posts/GET_POSTS";
 const GET_POSTS_SUCCESS = "posts/GET_POSTS_SUCCESS";
@@ -8,69 +9,52 @@ const GET_POST = "GET_POST";
 const GET_POST_SUCCESS = "GET_POST_SUCCESS";
 const GET_POST_ERROR = "GET_POST_ERROR";
 
-const posts = () => {
-  {
-    type: GET_POSTS;
-  }
-};
+export const getPosts = () => ({ type: GET_POSTS });
+export const getPost = (id) => ({ type: GET_POST, payload: id, meta: id });
+// payload는 파라미터 용도, meta는 리듀서에서 id를 알기위한 용도
 
-const postsSuccess = (posts) => {
-  {
-    type: GET_POSTS_SUCCESS, posts;
-  }
-};
-
-const postsError = (error) => {
-  {
-    type: GET_POSTS_ERROR, error;
-  }
-};
-
-const post = () => {
-  {
-    type: GET_POST;
-  }
-};
-
-const postSuccess = (post) => {
-  {
-    type: GET_POST_SUCCESS, post;
-  }
-};
-
-const postError = (error) => {
-  {
-    type: GET_POST_ERROR, error;
-  }
-};
-
-export const getPosts = () => async (dispatch) => {
-  // 요청이 시작됨
-  dispatch(posts());
-  // API를 호출
+function* getPostsSaga() {
   try {
-    const posts = await postsAPI.getPosts();
-    // 성공했을 때
-    dispatch(postsSuccess(posts));
+    const posts = yield call(postsAPI.getPosts);
+    yield put({
+      type: GET_POSTS_SUCCESS,
+      payload: posts,
+    });
   } catch (e) {
-    // 실패했을 때
-    dispatch(postsError(e));
+    yield put({
+      type: GET_POSTS_ERROR,
+      error: true,
+      payload: e,
+    });
   }
-};
+}
 
-export const getPost = () => async (dispatch) => {
-  // 요청이 시작됨
-  dispatch(post());
-  // API를 호출
+function* getPostSaga(action) {
+  const param = action.payload;
+  const id = action.meta;
+
   try {
-    const post = await postsAPI.getPost();
-    // 성공했을 때
-    dispatch(postSuccess(post));
+    const post = yield call(postsAPI.getPostById, param); // API 함수에 넣어주고 싶은 인자는 call 함수의 두번째 인자부터 순서대로 넣어주면 된다.
+    yield put({
+      type: GET_POST_SUCCESS,
+      payload: post,
+      meta: id,
+    });
   } catch (e) {
-    // 실패했을 때
-    dispatch(postError(e));
+    yield put({
+      type: GET_POST_ERROR,
+      error: true,
+      payload: e,
+      meta: id,
+    });
   }
-};
+}
+
+// 사가들을 합치고 모니터링하기
+export function* postsSaga() {
+  yield takeEvery(GET_POSTS, getPostsSaga);
+  yield takeEvery(GET_POST, getPostSaga);
+}
 
 const initialState = {
   posts: {
